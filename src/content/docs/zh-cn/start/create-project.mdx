@@ -1,0 +1,140 @@
+---
+title: 创建一个项目
+sidebar:
+  order: 3
+---
+
+import { Card, Steps } from '@astrojs/starlight/components';
+
+import Cta from '@fragments/cta.mdx';
+
+Tauri 之所以如此灵活, 是因为它几乎能和所有的前端框架配合使用。我们创建了 [`create-tauri-app`](https://github.com/tauri-apps/create-tauri-app) 这个项目，以帮助你使用官方维护的框架模板之一来创建新的 Tauri 项目
+
+`create-tauri-app` 目前包括了用于 vanilla (没有框架的 HTML, CSS and JavaScript)，[Vue.js](https://vuejs.org), [Svelte](https://svelte.dev), [React](https://reactjs.org/), [SolidJS](https://www.solidjs.com/), [Angular](https://angular.io/), [Preact](https://preactjs.com/), [Yew](https://yew.rs/), [Leptos](https://github.com/leptos-rs/leptos), 和 [Sycamore](https://sycamore-rs.netlify.app/) 的模板，你还可以在 [Awesome Tauri repo](https://github.com/tauri-apps/awesome-tauri) 仓库中找到或者添加你自己的社区模板和框架
+
+或者，你可以[将 Tauri 添加到现有项目](/start/create-project/)，以便快速将你现有的代码库转换为 Tauri 应用
+
+## 使用 `create-tauri-app`
+
+要使用`create-tuari-app`, 在你希望启动项目的文件夹中执行以下命令之一
+
+<Cta />
+
+按照提示操作, 选择你的项目名称, 前端语言, 包管理器, 以及前端框架和框架的其他选项
+
+:::tip[不知道选什么?]
+
+{/* TODO: redirect to integrate to existing front-end project specific docs */}
+我们建议从 vanilla 模板(不包含前端框架的 HTML, CSS 和 JavaScript)开始, 你稍后可以随时[集成前端框架](/start/create-project/)
+
+- 选择你的前端使用哪个语言: `TypeScript / JavaScript`
+- 选择你的包管理器: `pnpm`
+- 选择你的 UI 模板: `Vanilla`
+- 选择你的 UI 风格: `TypeScript`
+
+:::
+
+{/* TODO: Can CTA offer to install the deps? */}
+
+在 `create-tauri-app` 完成之后, 你可以进入项目文件夹, 安装依赖, 然后使用 [Tauri CLI](/reference/cli) 启动开发服务器
+
+import CommandTabs from '@components/CommandTabs.astro';
+
+<CommandTabs
+  npm="cd tauri-app
+    npm install
+    npm run tauri dev"
+  yarn="cd tauri-app
+    yarn install
+    yarn tauri dev"
+  pnpm="cd tauri-app
+    pnpm install
+    pnpm tauri dev"
+  cargo="cd tauri-app
+    cargo tauri dev"
+/>
+
+你现在将看到一个新的 window 窗口随着你的应用启动被打开
+
+**恭喜!** 你做出了自己的 Tauri 软件 🚀
+
+## 手动安装(Tauri CLI)
+
+如果您已经有了现有的前端项目或者想要自行配置, 您可以使用 Tauri CLI 分别初始化项目的后端部分
+
+:::note
+
+以下示例假设您正在创建一个新的项目, 如果你已经初始化了应用的前端, 你可以跳过第一步
+
+:::
+
+<Steps>
+
+    1. 为你的项目创建一个新的目录, 然后初始化前端. 你可以使用纯 HTML, CSS 和 JavaScript, 或者任何你喜欢的框架, 例如 Next.js, Nuxt, Svelte, Yew 或者 Leptos. 你只需要一种给浏览器提供应用的方法. 以下只是一个简单设置 Vite 应用程序的例子:
+
+        <CommandTabs
+            npm="mkdir tauri-app
+                cd tauri-app
+                npm create vite@latest ."
+            yarn="mkdir tauri-app
+                cd tauri-app
+                yarn create vite ."
+            pnpm="mkdir tauri-app
+                cd tauri-app
+                pnpm create vite ."
+        />
+
+    2. 然后, 用你选择的包管理器安装 Tauri CLI, 如果你使用 `cargo` 安装 Tauri CLI, 你必须全局安装它
+
+        <CommandTabs
+            npm="npm install -D @tauri-apps/cli@next"
+            yarn="yarn add -D @tauri-apps/cli@next"
+            pnpm="pnpm add -D @tauri-apps/cli@next"
+            cargo="cargo install tauri-cli@^2.0.0-beta"
+        />
+
+    3. 确定你的前端服务器URL, 这是Tauri将加载你的前端内容的URL, 例如, 如果你正在使用Vite, 默认的URL是`http://localhost:5173`
+
+    4. 在你的项目文件夹中, 初始化Tauri
+
+        <CommandTabs
+            npm="npx tauri init"
+            yarn="yarn tauri init"
+            pnpm="pnpm tauri init"
+            cargo="tauri init"
+        />
+
+        执行命令后, 它会显示一个提示, 问你不同的选项
+
+        ```sh frame=none
+        ✔ What is your app name? tauri-app
+        ✔ What should the window title be? tauri-app
+        ✔ Where are your web assets located? ..
+        ✔ What is the url of your dev server? http://localhost:5173
+        ✔ What is your frontend dev command? pnpm run dev
+        ✔ What is your frontend build command? pnpm run build
+        ```
+
+        这将在你的项目中创建一个名为 `src-tauri` 的目录, 并包含必要的Tauri的配置文件
+
+    5. 通过运行以下命令验证你的Tauri应用是否正常工作
+
+        <CommandTabs
+            npm="npx tauri dev"
+            yarn="yarn tauri dev"
+            pnpm="pnpm tauri dev"
+            cargo="cargo tauri dev"
+        />
+
+        这个命令将编译Rust代码, 并且打开一个window窗口加载你的web程序
+
+</Steps>
+
+**恭喜!**, 你已经使用Tauri CLI创建了一个新的Tauri项目 🚀
+
+## 下一步
+
+- [添加并配置一个前端框架](/start/frontend/)
+- [Tauri命令行接口](/reference/cli/)
+- [了解如何打包你的Tauri应用](/develop/)
+- [探索Tauri的附加功能已进行扩展](/plugin/)
