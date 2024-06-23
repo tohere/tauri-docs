@@ -1,0 +1,95 @@
+---
+title: 进程间通信
+sidebar:
+  label: 概述
+  order: 1
+  badge:
+    text: WIP
+    variant: caution
+---
+
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+进程间通信(IPC)允许隔离的进程安全的进行通信, 这是构建更复杂应用程序的关键
+
+在以下指南中了解有关特定 IPC 模式的更多信息:
+
+<CardGrid>
+  <LinkCard
+    title="Brownfield"
+    href="/concept/inter-process-communication/brownfield/"
+  />
+  <LinkCard
+    title="Isolation"
+    href="/concept/inter-process-communication/isolation/"
+  />
+</CardGrid>
+
+Tauri 使用一种特殊风格的进程间通信, 成为 [异步消息传递], 在这种模式下, 进行使用一些简单的数据表示来交换请求和响应的序列化. 消息传递对于有网页开发经验的人应该不陌生, 因为这种范式被英语互联网上的客户端-服务器通信
+
+消息传递是一种比共享内存或者直接函数访问更安全的技术, 因为接收方可以根据需要拒绝或丢弃请求. 例如, 如果 Tauri 核心进程判断一个请求是恶意的, 它会简单的丢弃该请求, 并且不会执行相应的函数
+
+下面, 我们详细解释一下 Tauri 的两个 IPC 原语 - `Events` 和 `Commands`
+
+## Events
+
+Events 是一种单向的 IPC 消息, 最适合用于生命周期时间和状态变化, 不像 [Commands](#commands), Events 可以被前端和 Tauri 核心触发
+
+<figure>
+
+```d2 sketch pad=50
+shape: sequence_diagram
+
+Frontend: {
+  shape: rectangle
+  label: "Webview\nFrontend"
+}
+Core: {
+  shape: rectangle
+  label: "Core\nBackend"
+}
+
+Frontend -> Core: "Event"{style.animated: true}
+Core -> Frontend: "Event"{style.animated: true}
+```
+
+<figcaption>在核心和 webview 之间发送 Events</figcaption>
+</figure>
+
+## Commands
+
+Tauri 也提供了一个类似于 [外部函数接口(FFI)] 的抽象, 位于 IPC 消息之上[^1]. 主要的 API 是 `invoke`, 类似于浏览器的 `fetch` API, 允许前端 调用 Rust 函数, 传递参数, 以及接收数据
+
+因为这个机制在底层使用类似 [JSON-RPC] 的协议来序列化请求和响应, 所以所有的参数和返回数据必须可以序列化为 JSON
+
+<figure>
+
+```d2 sketch pad=50
+shape: sequence_diagram
+
+
+Frontend: {
+  label: "Webview\nFrontend"
+}
+
+Core: {
+  label: "Core\nBackend"
+}
+InvokeHandler: {
+  label: "Invoke\nHandler"
+}
+
+Frontend -> Core: "IPC Request"{style.animated: true}
+Core -> InvokeHandler: "Invoke command"{style.animated: true}
+InvokeHandler -> Core: "Serialize return"{style.animated: true}
+Core -> Frontend: "Response"{style.animated: true}
+```
+
+<figcaption>涉及命令调用的 IPC 消息</figcaption>
+</figure>
+
+[^1]: 因为 Commands 在底层仍然使用消息传递, 所以它们不会像真正的外部函数接口(FFI)那样存在相同的安全风险
+
+[异步消息传递]: https://en.wikipedia.org/wiki/Message_passing#Asynchronous_message_passing
+[json-rpc]: https://www.jsonrpc.org
+[外部函数接口]: https://en.wikipedia.org/wiki/Foreign_function_interface

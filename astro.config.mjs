@@ -184,7 +184,51 @@ export default defineConfig({
                 'zh-CN': '核心概念',
               },
               collapsed: true,
-              autogenerate: { directory: 'concept' },
+              items: [
+                {
+                  label: 'Overview',
+                  translations: {
+                    'zh-CN': '概述',
+                  },
+                  link: 'concept/',
+                },
+                {
+                  label: 'Tauri Architecture',
+                  translations: {
+                    'zh-CN': 'Tauri 架构',
+                  },
+                  link: '/concept/architecture',
+                },
+                {
+                  label: 'Process Model',
+                  translations: {
+                    'zh-CN': '进程模型',
+                  },
+                  link: '/concept/process-model',
+                },
+                {
+                  label: 'Rendering',
+                  translations: {
+                    'zh-CN': '渲染',
+                  },
+                  link: '/concept/rendering',
+                },
+                {
+                  label: 'App Size',
+                  translations: {
+                    'zh-CN': 'App 体积',
+                  },
+                  link: '/concept/size',
+                },
+                {
+                  label: 'Inter-Process Communication',
+                  translations: {
+                    'zh-CN': '进程间通信',
+                  },
+                  collapsed: true,
+                  autogenerate: { directory: 'concept/Inter-Process Communication' },
+                },
+              ],
             },
             {
               label: 'Security',
