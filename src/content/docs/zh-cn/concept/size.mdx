@@ -1,0 +1,75 @@
+---
+title: 应用体积
+sidebar:
+  order: 0
+  badge:
+    text: WIP
+    variant: caution
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+尽管 Tauri 默认提供的二进制文件已经非常小, 但为了达到最佳效果, 这里有一些技巧和窍门.
+
+## Cargo 配置
+
+一个最简单的和前端无关的体积优化是向你的项目中添加一个 Cargo 配置文件
+
+根据你使用的是 stable 版本还是 nightly 版本 Rust 工具链, 可用的选项会有所不同. 建议开发者使用 stable 工具链
+
+<Tabs>
+<TabItem label="Stable">
+```toml
+# src-tauri/Cargo.toml
+[profile.dev]
+incremental = true # 分步编译你的二进制文件
+
+[profile.release]
+codegen-units = 1 # 允许 LLVM 进行更好的优化
+lto = true # 启用 link-time-optimizations.
+opt-level = "s" # 优先考虑小的二进制文件, 如果你更倾向于速度, 设置为 `3`
+panic = "abort" # 通过禁用 panic handlers 提升性能
+strip = true # 确保移除 debug 符号
+
+````
+</TabItem>
+
+<TabItem label="Nightly">
+```toml
+# src-tauri/Cargo.toml
+[profile.dev]
+incremental = true # 分步编译你的二进制文件
+rustflags = ["-Zthreads=8"] # 更好的编译性能
+
+[profile.release]
+codegen-units = 1 # 允许 LLVM 进行更好的优化
+lto = true # 启用 link-time-optimizations.
+opt-level = "s" # 优先考虑小的二进制文件, 如果你更倾向于速度, 设置为 `3`
+panic = "abort" # 通过禁用 panic handlers 提升性能
+strip = true # 确保移除 debug 符号
+trim-paths = "all" # 从二进制文件中移除潜在的敏感信息
+rustflags = ["-Cdebuginfo=0", "-Zthreads=8"] # 更好的编译性能
+````
+
+</TabItem>
+</Tabs>
+
+### 参考资料
+
+:::note
+
+这并不包含所有参考资料的选项, 仅包含我们想要特别关注的那些
+
+:::
+
+- [incremental:](https://doc.rust-lang.org/cargo/reference/profiles.html#incremental) 分步编译你的二进制文件
+- [codegen-units:](https://doc.rust-lang.org/cargo/reference/profiles.html#codegen-units) 以牺牲编译时优化为代价, 加快编译时间
+- [lto:](https://doc.rust-lang.org/cargo/reference/profiles.html#lto) 启用链接时优化
+- [opt-level:](https://doc.rust-lang.org/cargo/reference/profiles.html#opt-level) 去顶编译器的优化重点, 使用 `3` 优化性能, 使用 `z` 优化体积, 使用 `s` 实现两者之间的平衡
+- [panic:](https://doc.rust-lang.org/cargo/reference/profiles.html#panic) 通过移除 pinic unwinding 来减小文件大小
+- [strip:](https://doc.rust-lang.org/cargo/reference/profiles.html#strip) 从二进制文件中移除 symbols 和 debuginfo
+- [rpath:](https://doc.rust-lang.org/cargo/reference/profiles.html#rpath) 通过将信息硬编码到二进制文件中, 帮助找到二进制文件所需的动态库
+- [trim-paths:](https://rust-lang.github.io/rfcs/3127-trim-paths.html) 从二进制文件中移除潜在的敏感信息
+- [rustflags:](https://doc.rust-lang.org/nightly/cargo/reference/unstable.html#profile-rustflags-option) 根据配置文件设置 Rust 编译器 flags:
+  - `-Cdebuginfo=0`: debuginfo symbols 是否应该包含在构建中
+  - `-Zthreads=8`: 增加编译过程中使用的线程数量
