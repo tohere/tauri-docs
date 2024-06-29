@@ -1,0 +1,195 @@
+---
+title: 能力
+sidebar:
+  order: 4
+---
+
+Tauri 为应用程序和插件开发者们提供了一个能力系统, 以逐步启用和约束运行在系统webview中的应用程序前端的核心暴露.
+
+Capabilities 是一组 [permissions](/security/permissions/) 的集合, 通过他们各自的标签映射到窗口和webviews, Capabilities 可以影响多窗口和webview, 并且可以在多个 Capabilities 中被引用
+
+:::tip[安全提示]
+
+属于多个功能的windows和webviews会有效合并所有相关功能的安全边界和权限
+
+:::
+
+Capability 文件被定义为 JSON或者TOML文件, 放在 `src-tauri/capabilities` 文件夹中
+
+最佳实践是使用单独的文件, 并在 `tauri.conf.json` 通过 identifier(标识符) 引用他们, 但也可以直接在 `capabilities` 字段中定义它们.
+
+所有在 `capabilities` 文件夹中的 capabilities 默认是自动启用的, 一旦 capabilities 在 `tauri.conf.json` 文件中被显示启用, 应用程序构建时将只能使用这些 capabilities
+
+有关配置方案的完整参考, 请查看 [参考](/reference/config/) 章节
+
+下面的JSON定义了一个 capability, 用来为核心插件和`window.setTitle` API 启用默认的功能
+
+```json title="src-tauri/capabilities/main.json
+{
+  "$schema": "./schemas/desktop-schema.json",
+  "identifier": "main-capability",
+  "description": "Capability for the main window",
+  "windows": ["main"],
+  "permissions": [
+    "path:default",
+    "event:default",
+    "window:default",
+    "app:default",
+    "resources:default",
+    "menu:default",
+    "tray:default",
+    "window:allow-set-title"
+  ]
+}
+```
+
+这些片段是 [Tauri configuration](/develop/configuration-files/#tauri-config) 文件的一部分
+
+这可能是最常见的配置方法, 其中个别 capabilities 被内联, 只有 permissions 被 identifier 引用
+
+这需要再 `capabilities` 文件夹中定义良好的 capability 文件
+
+```json title=src-tauri/tauri.conf.json
+{
+  "app": {
+    "security": {
+      "capabilities": ["my-capability", "main-capability"]
+    }
+  }
+}
+```
+
+内联 capabilities 可以与预定义的 capabilities 混合使用
+
+```json title=src-tauri/tauri.conf.json
+{
+  "app": {
+    "security": {
+      "capabilities": [
+        {
+          "identifier": "my-capability",
+          "description": "My application capability used for all windows",
+          "windows": ["*"],
+          "permissions": ["fs:default", "allow-home-read-extended"]
+        },
+        "my-second-capability"
+      ]
+    }
+  }
+}
+```
+
+## 目标平台
+
+通过定义 `platforms` 数组, capabilities 可以针对不同平台进行不同配置. 默认 capability 是应用于所有平台的, 但是你可以有选择的设置 `linux`, `macOS`, `windows`, `iOS` 和 `android` 的子集
+
+例如, 操作系统的 capability, 请注意, 它将仅在支持它的桌面平台上启用插件 permissions
+
+```json title="src-tauri/capabilities/desktop.json
+{
+  "$schema": "./schemas/desktop-schema.json",
+  "identifier": "desktop-capability",
+  "windows": ["main"],
+  "platforms": ["linux", "macOS", "windows"],
+  "permissions": ["global-shortcut:allow-register"]
+}
+```
+
+另一个例子是对移动端的, 请注意, 它将仅在支持它的移动平台上启用插件 permissions
+
+```json title="src-tauri/capabilities/mobile.json
+{
+  "$schema": "./schemas/mobile-schema.json",
+  "identifier": "mobile-capability",
+  "windows": ["main"],
+  "platforms": ["iOS", "android"],
+  "permissions": [
+    "nfc:allow-scan",
+    "biometric:allow-authenticate",
+    "barcode-scanner:allow-scan"
+  ]
+}
+```
+
+## 远程 API 访问
+
+默认情况下, 这个API 仅限于于Tauri应用程序捆绑的代码访问, 要允许远程访特定的Tauri命令, 可以在 capability 配置文件中进行定义
+
+这个例子允许从 `tauri.app` 的所有子域名扫描 NFC 标签, 并且使用条形码扫描器
+
+```json title="src-tauri/capabilities/remote-tags.json"
+{
+	"$schema": "./schemas/remote-schema.json",
+	"identifier": "remote-tag-capability",
+	"windows": ["main"],
+	"remote": {
+		"urls": ["https://*.tauri.app"]
+	}
+	"platforms": ["iOS", "android"],
+	"permissions": [
+		"nfc:allow-scan",
+		"barcode-scanner:allow-scan"
+	]
+}
+```
+
+:::caution
+
+在linux和安卓设备上, Tauri 无法区分来自嵌入式的 `<iframe>` 和 窗口背身的请求
+
+请慎重考虑使用这个功能, 并详细阅读关于目标操作系统特定安全影响的参考部分.
+
+:::
+
+## 安全边界
+
+_保护什么?_
+
+根据 permissions 和 capabilities 不同, 它可以实现一下功能:
+
+- 减少前端被攻击的影响
+- 防止或减少(意外)暴露本地系统接口和数据
+- 反之或减少前端到后端/系统的可能权限升级
+
+_不能保护什么?_
+
+- 恶意或不安全的rust代码
+- 过于宽松的作用域和配置
+- 命令实现中错误的作用域检查
+- 故意绕过 rust 代码
+- 基本上是应用程序中rust核心部分编写的任内容
+- 系统webview未打补丁的前一天
+- 供应链攻击或以其他方式破坏开发者系统
+
+:::tip[安全提示]
+
+安全边界依赖于窗口标签(**不是标题**), 我们建议只将窗口创建功能暴露给更改权限的窗口
+
+:::
+
+## 模式文件
+
+Tauri 会生成一个包含应用程序所有可用权限的 JSON 模式, 这样你在IDE中就可以实现自动补全功能.
+要使用这个模式, 将 `$schema` 属性设置为 `gen/schemas` 目录中的一个模式, 这些模式是特定于平台的.
+通常情况下, 你会将其设置为 `../gen/schemas/desktop-schema.json` 或
+`../gen/schemas/mobile-schema.json`, 不过你也可以为特定的目标平台定义一个能力.
+
+## 配置文件
+
+一个简单的Tauri应用程序目录结构示例:
+
+```sh
+tauri-app
+├── index.html
+├── package.json
+├── src
+├── src-tauri
+│   ├── Cargo.toml
+│   ├── capabilities
+│      └── <identifier>.json/toml
+│   ├── src
+│   ├── tauri.conf.json
+```
+
+任何内容都可以内联在 `tauri.conf.json` 文件中, 但是即使稍微复杂的配置也将会使得这个文件变得臃肿,
+这种方法的目的是尽可能将权限抽象化, 使其简单易懂
