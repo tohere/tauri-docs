@@ -1,0 +1,39 @@
+---
+title: 内容安全策略 (CSP)
+sidebar:
+  order: 6
+---
+
+Tauri 限制了你的HTML页面的内容安全策略(CSP), 这可以用来减少或防止常见的基于web的漏洞, 如跨站脚本攻击(XSS)
+
+本地脚本会被哈希处理, 样式和外部脚本则使用加密的一次性随机数进行引用, 这样可以防止加载未允许的内容.
+
+:::caution
+
+避免加载远程内容, 比如通过CDN 提供的脚本, 因为他们引入了攻击向量, 一般来说, 任何不受信任的文件都可能引入新的, 难以察觉的攻击向量.
+
+:::
+
+CSP 保护仅在设置了 Tauri 配置文件时才会启用.
+你应该尽可能设置的严格些, 仅仅只允许webview从你信任的,最好是你自己的主机加载资源.
+在编译时期, Tauri 自动将其一次性随机数和哈希追加到相关的CSP属性中, 用于绑定代码和资源, 所以你只需要关注应用中独特的部分.
+
+这是一个从 Tauri [`api`](https://github.com/tauri-apps/tauri/blob/dev/examples/api/src-tauri/tauri.conf.json#L22) 部分提取的一个例子,
+但是每个应用程序开发者都需要根据自己的应用需求进行订制
+
+```json title="tauri/examples/api/src-tauri/tauri.conf.json"
+  "csp": {
+        "default-src": "'self' customprotocol: asset:",
+        "connect-src": "ipc: http://ipc.localhost",
+        "font-src": ["https://fonts.gstatic.com"],
+        "img-src": "'self' asset: http://asset.localhost blob: data:",
+        "style-src": "'unsafe-inline' 'self' https://fonts.googleapis.com"
+      },
+```
+
+查看 [`script-src`], [`style-src`] 和 [CSP Sources] 了解关于防护的更多信息
+
+[content security policy]: https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP
+[`script-src`]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/script-src
+[`style-src`]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/style-src
+[csp sources]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/Sources#sources
