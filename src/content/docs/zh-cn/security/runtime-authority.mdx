@@ -1,0 +1,19 @@
+---
+title: 运行时权限
+sidebar:
+  badge:
+    text: WIP
+    variant: caution
+  order: 5
+---
+
+#### 运行时权限
+
+运行时权限是 Tauri 核心的一部分, 它在运行时管理所有的 权限, 能力 和 作用域, 以强制确定哪个窗口可以访问哪些命令, 并将作用域传递给命令
+
+每当webview调用Tauri命令时, 运行时权限会手动调用请求, 确保来源是否被允许使用请求的命令.
+检查来源是否是能力的一部分, 如果命令有定义作用域, 并且适用, 它们会被注入到调用请求中, 然后传递给适当的Tauri命令处理
+
+如果来源不被允许调用该命令, 运行时权限将拒绝这个请求, 并且Tauri命令不会被调用
+
+![IPC Diagram](@assets/concept/runtime-authority.svg)
