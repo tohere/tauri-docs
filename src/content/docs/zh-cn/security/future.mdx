@@ -1,0 +1,61 @@
+---
+title: 未来工作
+sidebar:
+  order: 9
+---
+
+本节介绍了我们已经开始或希望在未来解决的话题, 以使 Tauri 应用程序更加安全.
+如果你对这些话题感兴趣, 或者具有相关知识, 我们非常欢迎你通过github或者其他社区平台如discord成为新的贡献者, 并提供建议.
+
+### 二进制分析
+
+为了允许渗透测试人员,审计人员,自动化安全检查正确执行它们的工作, 提供来自已编译二进制文件的洞察也是非常有价值的,
+并非所有公司都是开源的, 也不一定会提供源代码供审计, 红队和其他安全测试使用.
+
+另一个经常被忽视的点是, 提供内置元数据可以让应用程序的用户大规模审核系统中的已知漏洞, 而无需花费毕生精力
+
+如果你的威胁模型依赖于安全性通过混淆实现, 本节将提供一些工具和观点, 希望能让你重新考虑.
+
+对于rust, 有一个叫做 `cargo-auditable` 的工具, 可以创建 [SBOMs](https://en.wikipedia.org/wiki/Software_supply_chain), 并提供二进制文件的确切 crate 版本和依赖项, 同时不会破坏可重现构建
+
+对于前端栈，我们还没有类似的解决方案，因此从二进制文件中提取前端资产应该是一个简单的过程。之后就可以使用 npm audit 或类似的工具。已经有文章[blog posts](https://infosecwriteups.com/reverse-engineering-a-native-desktop-application-tauri-app-5a2d92772da5)介绍了这一过程，但还没有简单的工具可用。
+
+We are planning to provide such tooling or make it easier to extract assets,
+when compiling a Tauri app with certain features.
+
+To use pentesting tools like [Burpsuite](https://portswigger.net/burp),
+[Zap](https://www.zaproxy.org/) or [Caido](https://caido.io/) it is necessary
+to intercept traffic from the webview and pass it through the testing proxy.
+Currently Tauri has no inbuilt method to do so but there is ongoing work to
+ease this process.
+
+All of these tools allow to properly test and inspect Tauri applications
+without sorce code access and should be considered when building a Tauri application.
+
+We are planning to further support and implement related features in the future.
+
+### WebView Hardening
+
+In Tauri's current threat model and boundaries we are not able to add more
+security constraints to the WebView itself and since it is the biggest part of
+our stack which is written in an memory unsafe language, we are planning to research and
+consider ways to further sandbox and isolate the webview processes.
+
+Inbuilt and external sandboxing methods will be evaluated to reduce attack impact
+and to enforce the IPC bridge for system access.
+We believe that this part of our stack is the weak link but current generation WebViews
+are improving in their hardening and exploit resillience.
+
+### Fuzzing
+
+To allow more efficient and simplify the process of fuzzing Tauri applications
+we aim to further implement our mock runtimes and other tooling to make it easier
+to configure and build for individual Tauri applications.
+
+Tauri is supporting a multitude of Operating Systems and CPU architectures, usually
+apps have only few or no possible memory unsafe code.
+No pre-existing fuzzing tooling and libraries support these uncommon fuzzing use case,
+so we need to implement it and support existing libraries like [libAFL](https://github.com/AFLplusplus/LibAFL)
+to build Tauri fuzzing frameworks.
+
+The goal is to make fuzzing accessible and efficient for Tauri application developers.
