@@ -1,0 +1,53 @@
+---
+title: 开发
+description: 使用Tauri进行开发的核心概念
+sidebar:
+  order: 0
+  label: 概述
+  badge:
+    text: WIP
+    variant: caution
+---
+
+{/* TODO: Figure out what we need on this page... */}
+
+import Stub from '@components/Stub.astro';
+import CommandTabs from '@components/CommandTabs.astro';
+
+<Stub />
+
+### 1. 启动你的开发服务器
+
+现在你已经 [准备好了一切](../start/), 你应该启动你的应用程序开发服务器, 该服务器由你的UI框架或者打包工具提供(当前, 这里假设你正在使用其中之一), 如果你跟着我们的教程指南, 在第二步中你应该已经配置了 `beforeDevCommand` 来为你完成这项工作.
+
+:::note
+
+每一个框架都有自己的开发工具链, 本文档无法涵盖所有框架, 也无法对其进行更新.
+
+:::
+
+### 2. 启动 Tauri 开发窗口
+
+<CommandTabs
+  npm="npm run tauri dev"
+  yarn="yarn tauri dev"
+  pnpm="pnpm tauri dev"
+  cargo="cargo tauri dev"
+/>
+
+第一次运行这个命令时, rust 包管理器可能需要几分钟时间来下载和编译所有需要的包, 一旦它们被缓存, 后续的编译速度会更快, 因为只有你的代码需要重新编译
+
+一旦rust完成编译, webview 会打开并展示你的web app, 你可以更改你的web app代码, 如果你的工具支持, webview应该会自动更新, 就像浏览器一样.
+当你改变你的rust文件的时候, 它们将自动重新编译, 并且你的app会自动重启.
+
+请注意, Tauri 的 APIs 仅在你的app窗口中工作,
+因此一旦你开始使用它们, 你将不能在你的系统浏览器中打开你的前端
+
+:::caution[关于 Cargo.toml and 资源控制]
+
+在你的项目仓库中, 你应该将 `src-tauri/Cargo.lock` 和 `src-tauri/Cargo.toml` 文件一起提交到 git,
+因为 Cargo 使用 lockfile 来提供确定性的构建.
+因此, 建议所有应用程序都提交他们的 `Cargo.lock` 文件,
+你不应该提交 `src-tauri/target` 文件夹或它里边的任何内容
+
+:::
