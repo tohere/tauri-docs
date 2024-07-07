@@ -1,0 +1,213 @@
+---
+title: 嵌入外部二进制文件
+sidebar:
+  order: 1
+---
+
+你可能需要嵌入外部二进制文件, 来为你的 app 添加额外的功能, 或者防止用户安装额外的依赖(例如 Node.js 或 Python). 我们称这种二进制文件为 `sidecar`
+
+二进制文件可以是任何语言编写的可执行文件.
+常见的使用 `pyinstaller` 捆绑的 Python CLI 应用程序或者API服务器.
+
+为了捆绑你选择的二进制文件, 你在 `tauri.conf.json` 文件中的 `tauri > bundle` 对象中添加 `externalBin` 属性.
+`externalBin` 期望的是一个目标二进制文件的绝对或相对路径的字符串列表
+
+这里是一个配置示例. 这不是一个完整的 `tauri.conf.json` 文件
+
+```json title="src-tauri/tauri.conf.json"
+{
+  "tauri": {
+    "bundle": {
+      "externalBin": [
+        "/absolute/path/to/sidecar",
+        "relative/path/to/binary",
+        "binaries/my-sidecar"
+      ]
+    }
+  }
+}
+```
+
+:::note
+
+相对路径是相对于 `src-tauri` 目录下的 `tauri.conf.json` 文件,
+所以 `binaries/my-sidecar` 代表 `<PROJECT ROOT>/src-tauri/binaries/my-sidecar`
+
+:::
+
+为了使外部的二进制文件在每一个支持的架构系统上工作. 指定路径上必须存在具有相同名称和 `-$TARGET_TRIPLE` 后缀的二进制文件.
+例如, 对于 Linux 系统, `"externalBin": ["binaries/my-sidecar"]`需要在 `src-tauri/binaries/my-sidecar-x86_64-unknown-linux-gnu` 路径上存在可执行文件, 对于打在 Apple Silicon 的Mac OS 系统, 需要在 `src-tauri/binaries/my-sidecar-aarch64-apple-darwin` 路径上存在可执行文件
+
+**你可以通过运行 `rustc -Vv` 命令, 并查看 `host:` 属性, 可以找到当前平台的 `-$TARGET_TRIPLE` 后缀.**
+
+如果 `grep` 和 `cut` 命令可用, 它们应该在大多数 Unix 系统上都会存在, 你可以使用以下命令的组合直接获取需要的后缀:
+
+```shell
+rustc -Vv | grep host | cut -f2 -d' '
+```
+
+在windows上你可以使用 PowerShell 替代
+
+```powershell
+rustc -Vv | Select-String "host:" | ForEach-Object {$_.Line.split(" ")[1]}
+```
+
+这是一个在二进制文件中追加目标的Nodejs脚本
+
+```javascript
+const execa = require('execa');
+const fs = require('fs');
+
+let extension = '';
+if (process.platform === 'win32') {
+  extension = '.exe';
+}
+
+async function main() {
+  const rustInfo = (await execa('rustc', ['-vV'])).stdout;
+  const targetTriple = /host: (\S+)/g.exec(rustInfo)[1];
+  if (!targetTriple) {
+    console.error('Failed to determine platform target triple');
+  }
+  fs.renameSync(
+    `src-tauri/binaries/sidecar${extension}`,
+    `src-tauri/binaries/sidecar-${targetTriple}${extension}`
+  );
+}
+
+main().catch((e) => {
+  throw e;
+});
+```
+
+注意, 如果你将程序编译为与当前运行环境不同的架构, 这个脚本将无法工作
+
+## 在rust中运行脚本
+
+在 Rust 端, 导入 `tauri_plugin_shell::ShellExt` trait, 并在 AppHandle上 调用 `shell().sidecar()` 函数
+
+```rust
+use tauri_plugin_shell::ShellExt;
+use tauri_plugin_shell::process::CommandEvent;
+
+// `sidecar()` expects just the filename, NOT the whole path like in JavaScript
+let sidecar_command = app.shell().sidecar("my-sidecar").unwrap();
+let (mut rx, mut _child) = sidecar_command
+  .spawn()
+  .expect("Failed to spawn sidecar");
+
+tauri::async_runtime::spawn(async move {
+  // read events such as stdout
+  while let Some(event) = rx.recv().await {
+    if let CommandEvent::Stdout(line) = event {
+      window
+        .emit("message", Some(format!("'{}'", line)))
+        .expect("failed to emit event");
+      // write to stdin
+      child.write("message from Rust\n".as_bytes()).unwrap();
+    }
+  }
+});
+```
+
+你可以将这段代码放进Tauri 命令中, 以便轻松传递 AppHandle, 或者在构建脚本中存储它的引用, 以便在应用程序的其他地方访问.
+
+## 在 JavaScript 中运行
+
+在JavaScript的代码中, 从 `@tauri-apps/plugin-shell` 模块中导入 `Command` 类, 然后使用 `sidecar` 静态方法
+
+```javascript
+import { Command } from '@tauri-apps/plugin-shell';
+// `binaries/my-sidecar` is the EXACT value specified on `tauri.conf.json > tauri > bundle > externalBin`
+const sidecar_command = Command.sidecar('binaries/my-sidecar');
+const output = await sidecar_command.execute();
+```
+
+## 传递参数
+
+你可以向 Sidecar 命令传递参数, 就像运行普通的 `Command` 一样
+
+参数可以是 **静态的**(例如 `-o` 或者 `serve`) ,也可以是 **动态的**(例如, `<file_path>` 或者 `localhost:<PORT>`),
+你需要按照调用它们的正确顺序定义这些参数.
+静态参数直接原样定义, 动态参数可以使用正则表达式进行定义.
+
+First, define the arguments that need to be passed to the sidecar command in `src-tauri/capabilities/main.json`:
+
+首先, 在 `src-tauri/capabilities/main.json` 文件中定义需要传递给 sidecar 命令的参数,
+这里没有 `main.json`, 以下代码在 `src-tauri/capabilities/default.json` 文件中实现
+
+**注意: 下面的代码需要安装 `tauri-plugin-shell` 插件**
+
+```json title="src-tauri/capabilities/main.json" ins={14-31}
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Capability for the main window",
+  "windows": ["main"],
+  "permissions": [
+    "path:default",
+    "event:default",
+    "window:default",
+    "app:default",
+    "resources:default",
+    "menu:default",
+    "tray:default",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "args": [
+            "arg1",
+            "-a",
+            "--arg2",
+            {
+              "validator": "\\S+"
+            }
+          ],
+          "cmd": "",
+          "name": "binaries/my-sidecar",
+          "sidecar": true
+        }
+      ]
+    },
+    "shell:allow-open"
+  ]
+}
+```
+
+:::note
+
+如果你正在从 Tauri v1 迁移, Tauri v2 CLI 中的 `migrate` 命令应该会帮助你处理这个问题, 阅读 [自动迁移](/start/migrate/from-tauri-1/#automated-migration) 了解更多.
+
+:::
+
+然后, 要调用 sidecar 命令, 只需将 **所有** 参数作为一个数组传入即可.
+
+In Rust:
+
+```rust
+use tauri_plugin_shell::ShellExt;
+#[tauri::command]
+async fn call_my_sidecar(app: tauri::AppHandle) {
+  let sidecar_command = app.shell()
+    .sidecar("my-sidecar")
+    .unwrap()
+    .args(["arg1", "-a", "--arg2", "any-string-that-matches-the-validator"]);
+  let (mut _rx, mut _child) = sidecar_command.spawn().unwrap();
+}
+```
+
+在 JavaScript 中:
+
+```javascript
+import { Command } from '@tauri-apps/plugin-shell';
+// `binaries/my-sidecar` is the EXACT value specified on `tauri.conf.json > tauri > bundle > externalBin`
+// notice that the args array matches EXACTLY what is specified on `tauri.conf.json`.
+const command = Command.sidecar('binaries/my-sidecar', [
+  'arg1',
+  '-a',
+  '--arg2',
+  'any-string-that-matches-the-validator',
+]);
+const output = await command.execute();
+```

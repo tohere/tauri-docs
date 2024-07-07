@@ -1,0 +1,144 @@
+---
+title: 嵌入附加文件
+sidebar:
+  order: 1
+---
+
+你可能想要在你的 app 中包含额外文件, 这些文件不属于前端(你的 `frontendDist`)的直接组成部分, 或者文件太大而无法内联到二进制文件中, 我们称这些文件为 `资源(resources)`
+
+要将你选择的文件进行绑定, 你可以在你的 `tauri.conf.json` 文件中的 `bundle` 对象中添加 `resources` 属性
+
+See more about `tauri.conf.json` configuration [here][tauri.bundle].
+
+`resources` 期望的是一个目标文件的绝对或相对路径的 **字符串数组**, 如果你需要包含一个目录下的多个文件, 它支持 glob 模式
+
+这是一个配置示例, 这不是一个完整的 `tauri.conf.json` 文件
+
+```json title=tauri.conf.json
+{
+  "bundle": {
+    "resources": [
+      "/absolute/path/to/textfile.txt",
+      "relative/path/to/jsonfile.json",
+      "resources/*"
+    ]
+  }
+}
+```
+
+另外, 如果你想更改文件复制的目标位置, `resources` 配置也可以接受一个 映射(map) 对象,
+下面是一个示例, 展示了怎么将不同来源的文件包含到同一个 `资源(resources)` 文件夹的
+
+```json title=tauri.conf.json
+{
+  "bundle": {
+    "resources": {
+      "/absolute/path/to/textfile.txt": "resources/textfile.txt",
+      "relative/path/to/jsonfile.json": "resources/jsonfile.json",
+      "resources/*": "resources/"
+    }
+  }
+}
+```
+
+:::note
+
+绝对路径和包含父组件的路径(`../`)只能通过 `"$RESOURCE/**"` 的形式.
+相对路径像 `"path/to/file.txt"` 可以通过 `"$RESOURCE/path/to/file.txt"` 来明确允许
+
+:::
+
+## 在 Rust 中访问文件
+
+在这个例子中, 我们想要绑定额外的 i18n json 文件, 它看起来像这样:
+
+```json title=de.json
+{
+  "hello": "Guten Tag!",
+  "bye": "Auf Wiedersehen!"
+}
+```
+
+在这个例子中, 我们将这些文件存储在一个 `lang` 文件夹中, 该文件夹和 `tauri.conf.json` 相邻.
+为此, 我们像上面一样, **在 `resources` 中添加 `"lang/*"`**
+
+在 Rust 端, 你需要一个 [`PathResolver`] 的实例, 你可以从 [`App`] 和 [`AppHandle`] 中获取
+
+```rust
+tauri::Builder::default()
+  .setup(|app| {
+    // 指定的路径必须遵循 `tauri.conf.json > bundle > resources` 中定义的相同语法
+    let resource_path = app.path().resolve("lang/de.json", BaseDirectory::Resource)?;
+
+    let file = std::fs::File::open(&resource_path).unwrap();
+    let lang_de: serde_json::Value = serde_json::from_reader(file).unwrap();
+
+    // 这将在终端中打印 'Guten Tag!'
+    println!("{}", lang_de.get("hello").unwrap());
+
+    Ok(())
+  })
+```
+
+```rust
+#[tauri::command]
+fn hello(handle: tauri::AppHandle) -> String {
+    let resource_path = handle.path().resolve("lang/de.json", BaseDirectory::Resource)?;
+
+    let file = std::fs::File::open(&resource_path).unwrap();
+    let lang_de: serde_json::Value = serde_json::from_reader(file).unwrap();
+
+    lang_de.get("hello").unwrap()
+}
+```
+
+## 在 JavaScript 中访问文件
+
+这基于上面的例子
+
+请注意, 你必须配置访问权限列表, 以启用你需要的 [`plugin-fs`] APIs, 以及访问 `$RESOURCE` 文件夹的权限.
+
+```json title=src-tauri/capabilities/main.json ins={14-16}
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main-capability",
+  "description": "Capability for the main window",
+  "windows": ["main"],
+  "permissions": [
+    "path:default",
+    "event:default",
+    "window:default",
+    "app:default",
+    "resources:default",
+    "menu:default",
+    "tray:default",
+    // 需要注意, 下面的两个权限需要添加 [tauri-plugin-fs](https://crates.io/crates/tauri-plugin-fs) crate 才可以使用
+    "fs:allow-read-text-file",
+    "fs:allow-resource-read-recursive"
+  ]
+}
+```
+
+:::note
+
+这里我们使用 `fs:allow-resource-read-recursive` 来允许对整个 `$RESOURCE` 文件夹, 文件和子目录完全递归读取访问的权限.
+要了解更多, 请阅读 [作用域权限][Scope Permissions] 了解其他选项, 或者阅读 [作用域][Scopes]了解更精细的控制.
+
+:::
+
+```javascript
+import { resolveResource } from '@tauri-apps/api/path';
+import { readTextFile } from '@tauri-apps/plugin-fs';
+
+const resourcePath = await resolveResource('lang/de.json');
+const langDe = JSON.parse(await readTextFile(resourcePath));
+console.log(langDe.hello); // This will print 'Guten Tag!' to the devtools console
+```
+
+[tauri.bundle]: ../../reference/config/#bundleconfig
+[`pathresolver`]: https://docs.rs/tauri/latest/tauri/struct.PathResolver.html
+[`app`]: https://docs.rs/tauri/latest/tauri/struct.App.html
+[`apphandle`]: https://docs.rs/tauri/latest/tauri/struct.AppHandle.html
+[`plugin-fs`]: ../../reference/javascript/fs/
+[Scope Permissions]: ../../plugin/file-system#scope-permissions
+[scopes]: ../../plugin/file-system#scopes
