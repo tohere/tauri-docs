@@ -1,0 +1,59 @@
+---
+title: Scope
+sidebar:
+  order: 4
+---
+
+对Tauri命令进行细粒度行为控制的参数。
+
+它可以是任意 serde 可序列化类型, 用于允许或禁止Tauri命令的某些操作.
+配置的作用域会传递给命令, 并由命令强制执行
+
+例如:
+
+```json
+{
+  "allow": [{ "path": "$HOME/**" }],
+  "deny": [{ "path": "$HOME/secret.txt" }]
+}
+```
+
+对象属性:
+
+- allow
+- deny
+
+##### allow
+
+`[Value](#value)`[] | null
+
+定义在这个范围内, 哪些数据是被允许的
+
+##### deny Value[] | null
+
+定义在这个范围内, 那些数据是被拒绝的, 这些数据应该按照验证逻辑进行优先处理
+
+### target
+
+值为下面的任一项:
+
+- `"macOS"`
+- `"windows"`
+- `"linux"`
+- `"android"`
+- `"iOS"`
+
+平台目标
+
+### Value
+
+值为下面的任一项:
+
+- `null`: 代表一个 null JSON 值
+- `boolean`: 代表 `[bool]`
+- [`Number`](#number): 代表一个邮箱的 ACL `[Number]`
+- `string`: 代表 `[string]`
+- [`Value`](#value)[]: 代表 `Value` 列表
+- 代表一个从 `[String]` 到 `[Value]` 的映射, 允许额外的属性: [Value](#value)
+
+所有支持 ACL 的值
