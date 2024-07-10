@@ -1,0 +1,157 @@
+---
+title: Permission
+sidebar:
+  order: 4
+---
+
+说明命令的明确权限
+
+可以让命令在app的前端被访问
+
+如果定了的范围, 就可以对单个或多个命令的访问进行精细控制
+
+对象属性:
+
+- commands
+- description
+- identifier(必需)
+- platforms
+- scope
+- version
+
+### commands
+
+[`Commands`](#commands)
+
+使用 `permission` 允许或禁止命令
+
+```json title="Default"
+{
+  "allow": [],
+  "deny": []
+}
+```
+
+### description
+
+`string` | `null`
+
+关于权限的可读描述. Tauri 内部约定在markdown中使用 `h4` 标题, 用于 Tauri 文档生成
+
+### identifier
+
+`string`
+
+权限的唯一标识符
+
+### platforms
+
+[`Target`](#target)[] | `null`
+
+权限应用的目标平台, 默认所有平台
+
+### scope
+
+[`Scopes`](#scopes)
+
+使用该权限时允许或禁止的范围
+
+### version
+
+`integer` | `null`, 最小为 `1`, 格式化为 `uint64`
+
+权限的版本
+
+## 定义
+
+### Commands
+
+权限内允许和禁止的命令
+
+如果在 `allow` 和 `deny` 中发生冲突, 应该默认禁止
+
+对象属性:
+
+- allow
+- deny
+
+#### allow
+
+`string[]`
+
+允许的命令
+
+默认为 `[]`
+
+#### deny
+
+`string[]`
+
+禁止的命令, 优先执行
+
+默认 `[]`
+
+### Number
+
+值为下面任一项:
+
+- `integer` 格式化为 `int64`, 代表 `[i64]`
+- `number` 格式化为 `double`, 代表 `[f64]`
+
+一个有效的 ACL(Access Control List) 数字
+
+### Scopes
+
+对Tauri命令进行细粒度行为控制的参数。
+
+它可以是任意 serde 可序列化类型, 用于允许或禁止Tauri命令的某些操作.
+配置的作用域会传递给命令, 并由命令强制执行
+
+例如:
+
+```json
+{
+  "allow": [{ "path": "$HOME/**" }],
+  "deny": [{ "path": "$HOME/secret.txt" }]
+}
+```
+
+对象属性:
+
+- allow
+- deny
+
+##### allow
+
+`[Value](#value)`[] | null
+
+定义在这个范围内, 哪些数据是被允许的
+
+##### deny Value[] | null
+
+定义在这个范围内, 那些数据是被拒绝的, 这些数据应该按照验证逻辑进行优先处理
+
+### target
+
+值为下面的任一项:
+
+- `"macOS"`
+- `"windows"`
+- `"linux"`
+- `"android"`
+- `"iOS"`
+
+平台目标
+
+### Value
+
+值为下面的任一项:
+
+- `null`: 代表一个 null JSON 值
+- `boolean`: 代表 `[bool]`
+- [`Number`](#number): 代表一个邮箱的 ACL `[Number]`
+- `string`: 代表 `[string]`
+- [`Value`](#value)[]: 代表 `Value` 列表
+- 代表一个从 `[String]` 到 `[Value]` 的映射, 允许额外的属性: [Value](#value)
+
+所有支持 ACL 的值
