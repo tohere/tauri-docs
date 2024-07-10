@@ -1,0 +1,247 @@
+---
+title: Capability
+sidebar:
+  order: 4
+---
+
+开发人员可以使用分组和边界机制来隔离对IPC层的访问.
+
+它精细控制 app 窗口对 Tauri Core, app, 或插件命令的访问权限, 如果一个窗口没有匹配任何 Capability, 那么它将完全无法访问IPC层
+
+可以通过这种方式创建窗口组, 根据它们所需的系统访问权限, 从而减少权限较低窗口中前端漏洞的影响.
+窗口(windows)可以通过精确的名称(例如 `main-window`)或通配符模式(如 `*` 或 `admin-*`) 添加到一个 Capability 组中. 一个窗口可以没有, 一个或多个关联能力
+
+```json
+{
+  "identifier": "main-user-files-write",
+  "description": "这个 Capability 允许在macOS和Windows上 `main` 窗口访问与文件系统写相关命令以及 `dialog` 命令, 以启用对用户选择的文件的编程访问",
+  "windows": [
+    "main"
+  ],
+ "permissions": [
+    "path:default",
+    "dialog:open",
+    {
+      "identifier": "fs:allow-write-text-file",
+      "allow": [{ "path": "$HOME/test.txt" }]
+    },
+    "platforms": ["macOS","windows"]
+ ]
+}
+```
+
+对象属性:
+
+- description
+- identifier (必须)
+- local
+- permissions (必须)
+- platforms
+- remote
+- webviews
+- windows
+- description
+
+### description
+
+`string`
+
+描述该 Capability 在关联窗口上允许的内容
+
+它应该包含关于分组权限的描述
+
+例如:
+
+该 Capability 允许 `main` 窗口访问 **文件系统** 写入相关命令和 **对话框** 相关命令, 从而实现对用户选择文件的编程访问.
+
+### identifier
+
+`string`
+
+Capability 的标识符
+
+例如:
+
+`main-user-files-write`
+
+### local
+
+`boolean`
+
+该 Capability 是否启用对本地 URL 的支持, 默认是 `true`
+
+### permissions
+
+[Permissionentry](#permissionentry)[], 每一项都必须是唯一的
+
+这个 Capability 的附加权限列表
+
+必须包含插件名称作为前缀, 形式为 `${plugin-name}:${permission-name}`.
+对于在 app 中直接执行的命令, 只需包含 `${permission-name}`
+
+例如:
+
+```json
+[
+  "path:default",
+  "event:default",
+  "window:default",
+  "app:default",
+  "image:default",
+  "resources:default",
+  "menu:default",
+  "tray:default",
+  "shell:allow-open",
+  "dialog:open",
+  {
+    "identifier": "fs:allow-write-text-file",
+    "allow": [{ "path": "$HOME/test.txt" }]
+  }
+]
+```
+
+### platforms
+
+[`Target`](#target)[] | `null`
+
+限制这个 Capability 应用于那个目标平台
+
+默认所有平台
+
+例如:
+
+`["maxOS", "windows"]`
+
+### remote
+
+`CapabilityRemote`(#capabilityremote) | `null`
+
+设置可以使用该 Capability 权限的 远程URL
+
+这个设置是可选的, 并且默认是 `null`, 因为我们默认情况下是使用我们本地 app 提供的内容.
+
+:::caution
+
+确保你理解提供远程访问本地系统权限的安全影响
+
+:::
+
+例如:
+
+```json
+{
+  "urls": ["https://*.mydomain.dev"]
+}
+```
+
+### webviews
+
+`string[]`
+
+受该 Capability 影响的 webview 列表, 可以使用 glob 模式
+
+这只在使用多 webview 上下文时才是必需的, 默认情况下, 匹配 `[Self::windows]` 的窗口的所有子 webview 都会被链接
+
+比如:
+
+`["sub-webview-one", "sub-webview-two"]`
+
+### windows
+
+`string[]`
+
+受该 Capability 影响的 windows 列表, 可以使用 glob 模式
+
+在多 webview 窗口上, 首选 `[Self::webviews]` 以实现精细的访问控制.
+
+比如:
+
+`["main"]`
+
+## 定义
+
+### CapabilityRemote
+
+配置关联此 Capability 的远程 URL
+
+对象属性:
+
+- urls(必需)
+
+#### urls
+
+`string[]`
+
+这个 Capability 涉及的远程 URL, 使用 [URLPattern 标准](https://urlpattern.spec.whatwg.org/)
+
+比如:
+
+- `”https://*.mydomain.dev”`: 允许 `mydomain.dev` 的子域名
+- `”https://mydomain.dev/api/*”`: 允许 `mydomain.dev/api` 的任意子路径
+
+### Identifier
+
+`string`
+
+### Number
+
+值为下面的任一项:
+
+- `integer` 格式化为 `int64`, 代表 `[i64]`
+- `number` 格式化为 `double`, 代表 `[f64]`
+
+一个有效的 ACL(Access Control List) 数字
+
+### PermissionEntry
+
+值为下面的任一项:
+
+- [identifier](#identifier), 通过 `identifier` 引用权限或权限集
+- 通过标识符引用权限或权限集，并扩展其范围
+
+对象属性:
+
+- allow
+- deny
+- identifier (必需)
+
+##### allow
+
+`[Value](#value)`[] | null
+
+定义在这个范围内, 哪些数据是被允许的
+
+##### deny Value[] | null
+
+定义在这个范围内, 那些数据是被拒绝的, 这些数据应该按照验证逻辑进行优先处理
+
+##### identifier
+
+权限或权限集的标识符
+
+在 `[Capability]` 中, 一个 permission 值的入口, 可以是一个原始权限 `[Identifer]`, 也可以是引用权限, 并扩展其范围的对象
+
+### target
+
+值为下面的任一项:
+
+- `"macOS"`
+- `"windows"`
+- `"linux"`
+- `"android"`
+- `"iOS"`
+
+平台目标
+
+### Value
+
+值为下面的任一项:
+
+- `null`: 代表一个 null JSON 值
+- `boolean`: 代表 `[bool]`
+- [`Number`](#number): 代表一个邮箱的 ACL `[Number]`
+- `string`: 代表 `[string]`
+- [`Value`](#value)[]: 代表 `Value` 列表
+- 代表一个从 `[String]` 到 `[Value]` 的映射, 允许额外的属性: [Value](#value)
+
+所有支持 ACL 的值
